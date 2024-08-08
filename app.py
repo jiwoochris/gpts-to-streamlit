@@ -25,7 +25,6 @@ def initialize_session_state():
     if "thread_id" not in st.session_state:
         thread = openai_client.beta.threads.create()
         st.session_state.thread_id = thread.id
-
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -58,51 +57,37 @@ def create_assistant_run():
     return openai_client.beta.threads.runs.create(
         thread_id=st.session_state.thread_id,
         assistant_id=ASSISTANT_ID,
+        stream=True
     )
 
-def wait_for_run_completion(run):
-    """실행 완료를 기다리는 함수"""
-    while run.status != 'completed':
-        time.sleep(1)
-        run = openai_client.beta.threads.runs.retrieve(
-            thread_id=st.session_state.thread_id,
-            run_id=run.id
-        )
-    return run
-
-def get_assistant_messages(run):
-    """어시스턴트 메시지를 가져오는 함수"""
-    messages = openai_client.beta.threads.messages.list(
-        thread_id=st.session_state.thread_id
-    )
-    return [
-        message for message in messages
-        if message.run_id == run.id and message.role == "assistant"
-    ]
-
-def display_assistant_messages(assistant_messages):
-    """어시스턴트 메시지를 표시하는 함수"""
-    for message in assistant_messages:
-        content = message.content[0].text.value
-        st.session_state.messages.append({"role": "assistant", "content": content})
-        with st.chat_message("assistant"):
-            st.markdown(content)
+def process_stream(stream):
+    """스트림을 처리하고 메시지를 표시하는 함수"""
+    placeholder = st.empty()
+    full_response = ""
+    for chunk in stream:
+        if chunk.event == "thread.message.delta":
+            if hasattr(chunk.data, 'delta') and hasattr(chunk.data.delta, 'content'):
+                content_delta = chunk.data.delta.content[0].text.value
+                full_response += content_delta
+                placeholder.markdown(full_response + "▌")
+    placeholder.markdown(full_response)
+    return full_response
 
 def main():
     """메인 함수"""
     initialize_session_state()
     setup_page()
     display_chat_history()
-
+    
     if prompt := get_user_input():
         add_user_message(prompt)
         send_message_to_thread(prompt)
         
-        run = create_assistant_run()
-        run = wait_for_run_completion(run)
+        with st.chat_message("assistant"):
+            stream = create_assistant_run()
+            full_response = process_stream(stream)
         
-        assistant_messages = get_assistant_messages(run)
-        display_assistant_messages(assistant_messages)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 if __name__ == "__main__":
     main()
