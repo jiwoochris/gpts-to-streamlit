@@ -1,13 +1,16 @@
-import time
 import openai
 import streamlit as st
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # OpenAI 클라이언트 설정
 openai_client = openai
 
 # 상수 정의
-ASSISTANT_ID = "asst_XXXXXXXXXXXXXXXXXXXX"
-OPENAI_API_KEY = "sk-XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+ASSISTANT_ID = os.getenv("ASSISTANT_ID")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PAGE_TITLE = "<페이지 제목을 입력해주세요>"
 PAGE_DESCRIPTION = "<페이지 설명을 입력해주세요>"
 
